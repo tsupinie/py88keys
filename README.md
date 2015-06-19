@@ -4,6 +4,9 @@ A Python package for emulating common keyboard instrument sounds. You can either
 The MIDI driver was written for a M-Audio Keystation 88es. The USB library requires a vendor ID and product ID for whatever MIDI controller you're going to use. So if you're adapting this for some other controller, you'll need to find them.  I was able to do this on OS X Yosemite by plugging the controller into one of the USB ports, pulling up the System Information program and navigating to the "USB" section under "Hardware".  The controller should have its own entry, which lists the vendor and product IDs. I don't know how this would work on Windows or Linux.  I also don't know if other controllers will send over the same control sequences as mine.
 
 ### Prerequisites:
+##### NumPy (http://www.numpy.org/)
+This is used for fast numerical computation. It's available on MacPorts and comes bundled with Anaconda and Enthought or can probably be obtained from one of 24,823,698 other places.
+
 ##### PyAudio (https://people.csail.mit.edu/hubert/pyaudio/)
 This is used to talk to the sound card. I was able to install this using MacPorts, but I believe it's on Anaconda, too.
 
