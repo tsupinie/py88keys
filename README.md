@@ -14,7 +14,9 @@ This is used to talk to the sound card. I was able to install this using MacPort
 This is used to interpret input from the MIDI controller, so if you're just scripting tones to play, you could probably get by without it. Again, I was able to install this using MacPorts.
 
 ### How to run:
-`python midi_driver.py`
+`python midi_driver.py [wave_file.wav]`
+
+If `wave_file.wav` is given, the audio the program generates is placed in that wave file when the program closes. `CTRL+C` closes the program.
 
 ### How to change the drawbar setting (Hammond organ):
 In `midi_driver.py`, there's a call to `gen.setTambre()`, which takes a dictionary.  The keys in the dictionary are the intervals from the fundamental (-12 is an octave below the fundamental, 19 is an octave and fifth above the fundamental, etc.), and the values are the volumes for each of those in decibels above peak.  Each stop on a Hammond drawbar represents ~3 dB change in volume; 8 (or full out) is 0 dB down, and 1 (almost all the way in) is -21 dB above peak, or 21 dB below peak.
