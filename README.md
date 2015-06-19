@@ -1,4 +1,4 @@
-# Py88keys
+# Py88Keys
 A Python package for emulating common keyboard instrument sounds. Currently emulates only a Hammond organ with a Leslie speaker.  Plans are to extend the package to analog synthesizer emulation. No GUI for now, though that may also change.
 
 The MIDI driver was written for a M-Audio Keystation 88es. The USB library requires a vendor ID and product ID for whatever MIDI controller you're going to use. So if you're adapting this for some other controller, you'll need to find them.  I was able to do this on OS X Yosemite by plugging the controller into one of the USB ports, pulling up the System Information program and navigating to the "USB" section under "Hardware".  The controller should have its own entry, which lists the vendor and product IDs. I don't know how this would work on Windows or Linux.  I also don't know if other controllers will send over the same control sequences as mine.
