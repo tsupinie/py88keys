@@ -1,15 +1,9 @@
 
 import numpy as np
-from scipy.integrate import cumtrapz
-
-from multiprocessing import Pool
-import struct
-from datetime import datetime, timedelta
-import wave
-
-import cProfile
 
 import pyaudio
+
+import wave
 
 class Tone(object):
     pitches = [ 'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B' ]
@@ -177,8 +171,6 @@ class NoteGenerator(object):
 
         self._pya = pyaudio.PyAudio()
 
-        self._profile = cProfile.Profile()
-
         def grabMore(in_data, frame_count, time_info, status):
             data = self.generate(frame_count)
             return (data, pyaudio.paContinue)
@@ -195,7 +187,6 @@ class NoteGenerator(object):
         self._stream.start_stream()
 
     def cleanup(self):
-        self._profile.dump_stats('tones.out')
         self._stream.stop_stream()
         self._stream.close()
 
@@ -221,7 +212,6 @@ class NoteGenerator(object):
             n.cutoff()
 
     def generate(self, size=512):
-        self._profile.enable()
         finished_notes = [ n for n in self._notes if n.isFinished() ]
         for n in finished_notes:
             self._volumes.remove(self._volumes[self._notes.index(n)])
@@ -235,7 +225,6 @@ class NoteGenerator(object):
         mixed = self._speaker.waveformModulate(mixed)
         self._wave_data.append(mixed)
         rendered = NoteGenerator.render(mixed, self._dtype)
-        self._profile.disable()
         return rendered
 
     def writeToFile(self, file_name):

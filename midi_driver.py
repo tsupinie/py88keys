@@ -1,7 +1,9 @@
 
 import usb.core
-from tonegen import NoteGenerator, Tone
+
+from tonegen import NoteGenerator
 from speaker import LeslieSpeaker 
+
 import sys
 
 def playNote(gen, keyNum, loudness):
