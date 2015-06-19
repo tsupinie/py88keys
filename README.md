@@ -5,10 +5,10 @@ The MIDI driver was written for a M-Audio Keystation 88es. The USB library requi
 
 ### Prerequisites:
 ##### PyAudio (https://people.csail.mit.edu/hubert/pyaudio/)
-I was able to install this using MacPorts, but I believe it's on Anaconda, too.
+This is used to talk to the sound card. I was able to install this using MacPorts, but I believe it's on Anaconda, too.
 
 ##### PyUSB (https://github.com/walac/pyusb)
-Again, I was able to install this using MacPorts.
+This is used to interpret input from the MIDI controller, so if you're just scripting tones to play, you could probably get by without it. Again, I was able to install this using MacPorts.
 
 ### How to run:
 `python midi_driver.py`
