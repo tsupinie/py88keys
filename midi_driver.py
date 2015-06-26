@@ -5,6 +5,8 @@ from tonegen import NoteGenerator
 from speaker import LeslieSpeaker 
 
 import sys
+import thread
+import Queue
 
 def playNote(gen, keyNum, loudness):
     pitches = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B' ]
@@ -51,7 +53,7 @@ def handleInput(generator, speaker, sequence):
         pitchBend(generator, bend_amount)
         pass
     else:
-        print "Unrecognized control sequence:", control
+        print "Unrecognized control sequence:", sequence
 
 def setupUSB():
     dev = usb.core.find(idVendor=0x763, idProduct=0x192)
@@ -59,19 +61,31 @@ def setupUSB():
 
     intf = dev[0][1, 0]
 
-    endpoint_addr = intf[0].bEndpointAddress
+    rd_endpoint_addr = intf[0].bEndpointAddress
+    wt_endpoint_addr = intf[1].bEndpointAddress
 
     dev.read_ = dev.read
-    dev.read = lambda nb: dev.read_(endpoint_addr, nb, interface=intf)
+    dev.write_ = dev.write
+
+    dev.read = lambda nb: dev.read_(rd_endpoint_addr, nb, interface=intf, timeout=999999)
+    dev.write = lambda nb: dev.write_(wt_endpoint_addr, nb, interface=intf, timeout=999999)
     return dev
+
+def listen(pipe):
+    usb_dev = setupUSB()
+    while True:
+        try:
+            seq = usb_dev.read(4)
+            pipe.put(seq)
+        except usb.core.USBError as e:
+            pass
+    return
 
 def main():
     if len(sys.argv) > 1:
         wav_file = sys.argv[1]
     else:
         wav_file = None
-
-    usb_dev = setupUSB()
 
     n_channels = 2
     bit_rate = 44100
@@ -84,24 +98,28 @@ def main():
         -12:0, 
         7:0,
         0:0,
-        12:-100,
-        19:-100,
-        24:-100,
-        28:-100,
-        31:-100,
-        36:-100,
+        12:0,
+        19:-12,
+        24:-12,
+        28:-12,
+        31:-12,
+        36:-12,
     })
+
+    pipe = Queue.Queue(10)
+    listener = thread.start_new_thread(listen, (pipe,))
 
     while True:
         try:
-            seq = usb_dev.read(4)
+            seq = pipe.get(timeout=1)
             handleInput(gen, speaker, seq)
-        except KeyboardInterrupt:
-            print
-            break
-        except usb.core.USBError:
+        except Queue.Empty:
             pass
+        except KeyboardInterrupt:
+            print 
+            break
 
+    print "Cleaning up ..."
     gen.cleanup()
 
     if wav_file is not None:
