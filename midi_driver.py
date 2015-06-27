@@ -5,8 +5,6 @@ from tonegen import NoteGenerator
 from speaker import LeslieSpeaker 
 
 import sys
-import thread
-import Queue
 
 def playNote(gen, keyNum, loudness):
     pitches = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B' ]
@@ -55,8 +53,11 @@ def handleInput(generator, speaker, sequence):
     else:
         print "Unrecognized control sequence:", sequence
 
-def setupUSB():
-    dev = usb.core.find(idVendor=0x763, idProduct=0x192)
+def setupUSB(vendor_id=0x763, prod_id=0x192):
+    dev = usb.core.find(idVendor=vendor_id, idProduct=prod_id)
+    if dev is None:
+        print "USB device with vendor id 0x%x and product id 0x%x not found!" % (vendor_id, prod_id)
+        sys.exit()
     dev.set_configuration()
 
     intf = dev[0][1, 0]
@@ -71,16 +72,6 @@ def setupUSB():
     dev.write = lambda nb: dev.write_(wt_endpoint_addr, nb, interface=intf, timeout=999999)
     return dev
 
-def listen(pipe):
-    usb_dev = setupUSB()
-    while True:
-        try:
-            seq = usb_dev.read(4)
-            pipe.put(seq)
-        except usb.core.USBError as e:
-            pass
-    return
-
 def main():
     if len(sys.argv) > 1:
         wav_file = sys.argv[1]
@@ -91,6 +82,8 @@ def main():
     bit_rate = 44100
     max_pitch_bend = 2
 
+    usb_dev = setupUSB()
+
     speaker = LeslieSpeaker()
     gen = NoteGenerator(speaker, n_channels, bit_rate, max_pitch_bend)
 
@@ -98,20 +91,17 @@ def main():
         -12:0, 
         7:0,
         0:0,
-        12:0,
-        19:-12,
-        24:-12,
-        28:-12,
-        31:-12,
-        36:-12,
+        12:-100,
+        19:-100,
+        24:-100,
+        28:-100,
+        31:-100,
+        36:-100,
     })
-
-    pipe = Queue.Queue(10)
-    listener = thread.start_new_thread(listen, (pipe,))
 
     while True:
         try:
-            seq = pipe.get(timeout=1)
+            seq = usb_dev.read(4)
             handleInput(gen, speaker, seq)
         except Queue.Empty:
             pass
