@@ -53,24 +53,47 @@ def handleInput(generator, speaker, sequence):
     else:
         print "Unrecognized control sequence:", sequence
 
-def setupUSB(vendor_id=0x763, prod_id=0x192):
-    dev = usb.core.find(idVendor=vendor_id, idProduct=prod_id)
-    if dev is None:
+class find_class(object):
+    def __init__(self, class_):
+        self._class = class_
+
+    def __call__(self, device):
+        # first, let's check the device
+        if device.bDeviceClass == self._class:
+            return True
+        # ok, transverse all devices to find an
+        # interface that matches our class
+        for cfg in device:
+            # find_descriptor: what's it?
+            intf = usb.util.find_descriptor(cfg, bInterfaceClass=self._class)
+            if intf is not None:
+                return True
+
+        return False
+
+def setupUSB():
+    devs = usb.core.find(find_all=True, custom_match=find_class(1))
+
+    if devs == []:
         print "USB device with vendor id 0x%x and product id 0x%x not found!" % (vendor_id, prod_id)
         sys.exit()
-    dev.set_configuration()
 
-    intf = dev[0][1, 0]
+    for dev in devs:
+        dev.set_configuration()
 
-    rd_endpoint_addr = intf[0].bEndpointAddress
-    wt_endpoint_addr = intf[1].bEndpointAddress
+        intf = dev[0][1, 0]
 
-    dev.read_ = dev.read
-    dev.write_ = dev.write
+        rd_endpoint_addr = intf[0].bEndpointAddress
+        wt_endpoint_addr = intf[1].bEndpointAddress
 
-    dev.read = lambda nb: dev.read_(rd_endpoint_addr, nb, interface=intf, timeout=999999)
-    dev.write = lambda nb: dev.write_(wt_endpoint_addr, nb, interface=intf, timeout=999999)
-    return dev
+        dev.read_ = dev.read
+        dev.write_ = dev.write
+
+        dev.read = lambda nb: dev.read_(rd_endpoint_addr, nb, interface=intf, timeout=999999)
+        dev.write = lambda nb: dev.write_(wt_endpoint_addr, nb, interface=intf, timeout=999999)
+
+    # Just return the first one for now; have to think about how to do multiple devices at the same time.
+    return devs[0]
 
 def main():
     if len(sys.argv) > 1:
@@ -103,8 +126,6 @@ def main():
         try:
             seq = usb_dev.read(4)
             handleInput(gen, speaker, seq)
-        except Queue.Empty:
-            pass
         except KeyboardInterrupt:
             print 
             break
