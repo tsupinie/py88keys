@@ -2,37 +2,37 @@
 import usb.core
 
 from tonegen import NoteGenerator
-from speaker import LeslieSpeaker 
+from speaker import LeslieSpeaker, Speaker
 
 import sys
 
-def playNote(gen, keyNum, loudness):
+def playNote(gen: NoteGenerator, keyNum: int, loudness: int):
     pitches = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B' ]
     base = 24
     
     octave, pitch = divmod(keyNum - base, len(pitches))
     note = "%s%d" % (pitches[pitch], octave)
     if loudness > 0:
-        gen.addNote(note, loudness / 128.)
+        gen.addNote(note, loudness / 128)
     else:
-        gen.removeNote(note, loudness / 128.)
+        gen.removeNote(note, loudness / 128)
 
-def changeVolume(gen, level):
-    gen.setVolume(level / 128.)
+def changeVolume(gen: NoteGenerator, level: int):
+    gen.setVolume(level / 128)
 
-def changeModulation(speaker, mod_amount):
+def changeModulation(speaker: Speaker, mod_amount: int):
     if isinstance(speaker, LeslieSpeaker):
-        if mod_amount / 128. < 0.3333:
+        if mod_amount / 128 < 0.3333:
             speaker.setSpeed('off')
-        elif mod_amount / 128. < 0.66666:
+        elif mod_amount / 128 < 0.66666:
             speaker.setSpeed('slow')
         else:
             speaker.setSpeed('fast')
 
-def pitchBend(gen, amount):
-    gen.setPitchBend((amount - 64) / 64.)
+def pitchBend(gen: NoteGenerator, amount: int):
+    gen.setPitchBend((amount - 64) / 64)
 
-def handleInput(generator, speaker, sequence):
+def handleInput(generator: NoteGenerator, speaker: Speaker, sequence: list[int]):
     control = list(sequence)[:2]
 
     if control == [9, 144]:
@@ -54,10 +54,12 @@ def handleInput(generator, speaker, sequence):
         print("Unrecognized control sequence:", sequence)
 
 class find_class(object):
-    def __init__(self, class_):
+    _class: int
+
+    def __init__(self, class_: int):
         self._class = class_
 
-    def __call__(self, device):
+    def __call__(self, device: usb.Device):
         # first, let's check the device
         if device.bDeviceClass == self._class:
             return True
@@ -71,7 +73,7 @@ class find_class(object):
 
         return False
 
-def setupUSB():
+def setupUSB() -> usb.Device:
     devs = usb.core.find(find_all=True, custom_match=find_class(1))
 
     if devs == []:

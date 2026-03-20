@@ -5,10 +5,26 @@ import pyaudio
 
 import wave
 
+from speaker import Speaker
+
+
 class Tone(object):
+    _pitch: str
+    _size: int
+    _n_channels: int
+    _rate: int
+    _speaker: Speaker
+
+    _pitch_bend: int
+    _last_pitch_bend: int
+    _has_cutoff: bool
+    _is_finished: bool
+    _phase: np.ndarray[tuple[int], np.dtype[int]]
+    _samples: np.ndarray[tuple[int, int], np.dtype[int]]
+
     pitches = [ 'C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B' ]
 
-    def __init__(self, pitch, gen_size, n_channels, bit_rate, speaker):
+    def __init__(self, pitch: str, gen_size: int, n_channels: int, bit_rate: int, speaker: Speaker):
         self._pitch = pitch
         self._size = gen_size
         self._pitch_bend = 0
@@ -24,13 +40,13 @@ class Tone(object):
         samples = np.arange(self._size)
         self._samples = samples[:, np.newaxis] + (np.arange(self._n_channels).T * 100)
 
-    def setPitchBend(self, num_steps):
+    def setPitchBend(self, num_steps: int):
         self._pitch_bend = num_steps
 
     def cutoff(self):
         self._has_cutoff = True
 
-    def generate(self):
+    def generate(self) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
         if not self._is_finished:
             if self._last_pitch_bend == self._pitch_bend:
                 freq = Tone.pitch2Freq(self._pitch, self._pitch_bend) * np.ones((self._size, self._n_channels))
@@ -60,13 +76,13 @@ class Tone(object):
         self._last_pitch_bend = self._pitch_bend
         return audio
 
-    def getFrequency(self):
+    def getFrequency(self) -> np.ndarray[tuple[int, int], np.dtype[np.float64]]:
         start_freq = Tone.pitch2Freq(self._pitch, self._last_pitch_bend)
         end_freq = Tone.pitch2Freq(self._pitch, self._pitch_bend)
 
-        scale_fac = (end_freq / start_freq) ** (1. / (self._samples.shape[0] - 1))
+        scale_fac: float = (end_freq / start_freq) ** (1 / (self._samples.shape[0] - 1))
         freq = start_freq * scale_fac ** self._samples
-        return freq 
+        return freq
 
     def isFinished(self):
         return self._is_finished
@@ -81,7 +97,7 @@ class Tone(object):
         return not self.__eq__(other)
 
     @staticmethod
-    def intervalFromC0(pitch):
+    def intervalFromC0(pitch: str):
         if pitch[1] in [ '#', 'b' ]:
             note, octv = pitch[:2], int(pitch[2:])
         else:
@@ -90,28 +106,36 @@ class Tone(object):
         return Tone.pitches.index(note) + len(Tone.pitches) * octv
 
     @staticmethod
-    def intvC0ToPitch(interval):
+    def intvC0ToPitch(interval: int):
         octave, note_idx = divmod(interval, len(Tone.pitches))
         return "%s%d" % (Tone.pitches[note_idx], octave)
 
     @staticmethod
-    def pitch2Freq(pitch, bend=0):
+    def pitch2Freq(pitch: str, bend=0):
         intv_a440 = Tone.interval('A4', pitch)
         return 440. * 2 ** ((intv_a440 + bend) / 12.)
 
     @staticmethod
-    def interval(pitch_from, pitch_to):
+    def interval(pitch_from: str, pitch_to: str):
         intv_from_c0 = Tone.intervalFromC0(pitch_from)
         intv_to_c0 = Tone.intervalFromC0(pitch_to)
         return intv_to_c0 - intv_from_c0
 
     @staticmethod
-    def moveByInterval(pitch, interval):
+    def moveByInterval(pitch: str, interval: int):
         intv_c0 = Tone.intervalFromC0(pitch)
         return Tone.intvC0ToPitch(intv_c0 + interval)
 
 class Note(object):
-    def __init__(self, fundamental, harmonics, gen_size, n_channels, bit_rate, speaker):
+    _fund: str
+    _harm: dict[int, float]
+    _n_channels: int
+    _bit_rate: int
+
+    _tones: list[Tone]
+    _vols: list[float]
+
+    def __init__(self, fundamental: str, harmonics: dict[int, float], gen_size: int, n_channels: int, bit_rate: int, speaker: Speaker):
         self._fund = fundamental
         self._harm = harmonics
         self._n_channels = n_channels
@@ -124,16 +148,16 @@ class Note(object):
         for intv, loud in self._harm.items():
             harm_pitch = Tone.moveByInterval(self._fund, intv)
             self._tones.append(Tone(harm_pitch, gen_size, self._n_channels, self._bit_rate, speaker))
-            self._vols.append( 10 ** (loud / 2.) / sum_loud)
+            self._vols.append( 10 ** (loud / 2) / sum_loud)
 
     def getFundamental(self):
         return self._fund
 
-    def setPitchBend(self, num_steps):
+    def setPitchBend(self, num_steps: int):
         for t in self._tones:
             t.setPitchBend(num_steps)
 
-    def generate(self, size):
+    def generate(self, size: int):
         chunks = [ t.generate() for t in self._tones ]
         return NoteGenerator.mix(chunks, self._vols, size, self._n_channels)
 
@@ -154,7 +178,23 @@ class Note(object):
         return not self.__eq__(other)
 
 class NoteGenerator(object):
-    def __init__(self, speaker, n_channels, bit_rate, max_pitch_bend, dtype=np.int16):
+    _speaker: Speaker
+    _n_channels: int
+    _dtype: np.dtype
+    _bit_rate: int
+    _master_volume: float
+    _max_pitch_bend: int
+
+    _harmonics: dict[int, float]
+    _notes: list[Note]
+    _volumes: list[float]
+    _wave_data: list[np.ndarray]
+
+    _gen_size: int
+    _pya: pyaudio.PyAudio
+    _stream: pyaudio.Stream
+
+    def __init__(self, speaker: Speaker, n_channels: int, bit_rate: int, max_pitch_bend: int, dtype=np.int16):
         self._speaker = speaker
         self._n_channels = n_channels
         self._dtype = dtype
@@ -192,21 +232,21 @@ class NoteGenerator(object):
 
         self._pya.terminate()
 
-    def setTambre(self, harmonics):
+    def setTambre(self, harmonics: dict[int, float]):
         self._harmonics = harmonics
 
-    def setVolume(self, volume):
+    def setVolume(self, volume: float):
         self._master_volume = volume
 
-    def setPitchBend(self, amount):
+    def setPitchBend(self, amount: float):
         for n in self._notes:
             n.setPitchBend(amount * self._max_pitch_bend)
 
-    def addNote(self, pitch, loudness):
+    def addNote(self, pitch: str, loudness):
         self._volumes.append(loudness)
         self._notes.append(Note(pitch, self._harmonics, self._gen_size, self._n_channels, self._bit_rate, self._speaker))
 
-    def removeNote(self, pitch, loudness):
+    def removeNote(self, pitch: str, loudness):
         remove_notes = [ n for n in self._notes if n.getFundamental() == pitch ]
         for n in remove_notes:
             n.cutoff()
@@ -227,7 +267,7 @@ class NoteGenerator(object):
         rendered = NoteGenerator.render(mixed, self._dtype)
         return rendered
 
-    def writeToFile(self, file_name):
+    def writeToFile(self, file_name: str):
         dat = NoteGenerator.render(np.concatenate(tuple(self._wave_data)), self._dtype)
 
         with wave.open(file_name, 'w') as wf:
@@ -235,14 +275,14 @@ class NoteGenerator(object):
             wf.writeframes(dat)
 
     @staticmethod
-    def mix(chunks, vols, size, n_channels):
+    def mix(chunks: list[np.ndarray], vols: list[float], size: int, n_channels: int):
         mixed = np.zeros((size, n_channels))
         for ch, vl in zip(chunks, vols):
             mixed += (vl * ch)
         return mixed
 
     @staticmethod
-    def render(ary_data, dtype):
+    def render(ary_data: np.ndarray, dtype: np.dtype):
         n_samples = ary_data.shape[0] * ary_data.shape[1]
 
         dt_max = np.iinfo(dtype).max
