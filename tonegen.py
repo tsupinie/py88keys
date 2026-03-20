@@ -278,7 +278,7 @@ if __name__ == "__main__":
         try:
             sleep(1)
             if note_idx < len(tones):
-                gen.addNote(tones[note_idx], 0.25)
+                gen.addNote(tones[note_idx], 1)
                 print(Tone.pitch2Freq(tones[note_idx]))
                 note_idx += 1
             else:
