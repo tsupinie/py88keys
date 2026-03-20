@@ -45,13 +45,13 @@ def handleInput(generator, speaker, sequence):
         elif mod_control == 7:
             changeVolume(generator, sequence[-1])
         else:
-            print "Unrecognized modulation control code:", mod_control
+            print("Unrecognized modulation control code:", mod_control)
     elif control == [ 14, 224 ]:
         bend_amount = sequence[3]
         pitchBend(generator, bend_amount)
         pass
     else:
-        print "Unrecognized control sequence:", sequence
+        print("Unrecognized control sequence:", sequence)
 
 class find_class(object):
     def __init__(self, class_):
@@ -75,7 +75,7 @@ def setupUSB():
     devs = usb.core.find(find_all=True, custom_match=find_class(1))
 
     if devs == []:
-        print "USB device with vendor id 0x%x and product id 0x%x not found!" % (vendor_id, prod_id)
+        print("Suitable USB device not found!")
         sys.exit()
 
     for dev in devs:
@@ -130,7 +130,7 @@ def main():
             print 
             break
 
-    print "Cleaning up ..."
+    print("Cleaning up ...")
     gen.cleanup()
 
     if wav_file is not None:

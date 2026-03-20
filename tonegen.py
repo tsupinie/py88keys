@@ -47,7 +47,7 @@ class Tone(object):
             self._phase = (phase + self._phase)[-1]
 
             if self._has_cutoff:
-                for ichn in xrange(self._n_channels):
+                for ichn in range(self._n_channels):
                     zero_cross_idxs = np.where(audio[:-1, ichn] * audio[1:, ichn] <= 0)[0]
                     if len(zero_cross_idxs) > 0:
                         cutoff_idx = zero_cross_idxs[0]
@@ -121,7 +121,7 @@ class Note(object):
         self._vols = []
 
         sum_loud = sum( 10 ** (h / 2.) for h in self._harm.values() )
-        for intv, loud in self._harm.iteritems():
+        for intv, loud in self._harm.items():
             harm_pitch = Tone.moveByInterval(self._fund, intv)
             self._tones.append(Tone(harm_pitch, gen_size, self._n_channels, self._bit_rate, speaker))
             self._vols.append( 10 ** (loud / 2.) / sum_loud)
@@ -217,7 +217,7 @@ class NoteGenerator(object):
             self._volumes.remove(self._volumes[self._notes.index(n)])
             self._notes.remove(n)
 
-        self._speaker.updateSpeakerState(size, float(size) / self._bit_rate)
+        self._speaker.updateSpeakerState(size, size / self._bit_rate)
 
         chunks = [ n.generate(size) for n in self._notes ]
 
@@ -230,10 +230,9 @@ class NoteGenerator(object):
     def writeToFile(self, file_name):
         dat = NoteGenerator.render(np.concatenate(tuple(self._wave_data)), self._dtype)
 
-        wf = wave.open(file_name, 'w')
-        wf.setparams((self._n_channels, self._dtype(1).itemsize, self._bit_rate, 0, 'NONE', 'not compressed'))
-        wf.writeframes(dat)
-        wf.close()
+        with wave.open(file_name, 'w') as wf:
+            wf.setparams((self._n_channels, self._dtype(1).itemsize, self._bit_rate, 0, 'NONE', 'not compressed'))
+            wf.writeframes(dat)
 
     @staticmethod
     def mix(chunks, vols, size, n_channels):
@@ -253,11 +252,10 @@ class NoteGenerator(object):
         dt_off = dt_min + dt_mag
         dt_audio = (dt_mag * ary_data + dt_off).astype(dtype).flatten()
 
-        data = str(dt_audio.tobytes())
+        data = dt_audio.tobytes()
         return data
 
 if __name__ == "__main__":
-    import pyaudio
     from time import sleep
 
     from speaker import LeslieSpeaker
@@ -281,15 +279,15 @@ if __name__ == "__main__":
             sleep(1)
             if note_idx < len(tones):
                 gen.addNote(tones[note_idx], 0.25)
-                print Tone.pitch2Freq(tones[note_idx])
+                print(Tone.pitch2Freq(tones[note_idx]))
                 note_idx += 1
             else:
                 spkr.setSpeed('slow')
         except KeyboardInterrupt:
-            print
+            print()
             break
 
-    print "done"
+    print("done")
 
     gen.cleanup()
     gen.writeToFile("tones.wav")

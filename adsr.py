@@ -27,9 +27,7 @@ class ADSR(object):
         return env
 
 if __name__ == "__main__":
-    import matplotlib
-    matplotlib.use('agg')
-    import pylab
+    import matplotlib.pyplot as plt
 
     adsr = ADSR(0.1, 0.1, 0.7, 0.2)
 
@@ -43,20 +41,20 @@ if __name__ == "__main__":
 
     release_time = 0.8
 
-    for idx in xrange(secs * bit_rate / size):
-        if float(samples_created) / bit_rate > release_time:
-            release = float(samples_created) / bit_rate - release_time
+    for idx in range(secs * bit_rate / size):
+        if samples_created / bit_rate > release_time:
+            release = samples_created / bit_rate - release_time
         else:
             release = -1
 
-        env = adsr.envelope(float(samples_created) / bit_rate, release, float(size) / bit_rate, size)
+        env = adsr.envelope(samples_created / bit_rate, release, size / bit_rate, size)
 
         time.extend(np.arange(samples_created, samples_created + size, dtype=np.float64) / bit_rate)
         envelope.extend(env)
 
         samples_created += size
 
-    pylab.figure()
-    pylab.plot(time, envelope)
-    pylab.grid()
-    pylab.savefig('env_test.png')
+    plt.figure()
+    plt.plot(time, envelope)
+    plt.grid()
+    plt.savefig('env_test.png')
